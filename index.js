@@ -1,22 +1,31 @@
-const { Provider } = require('oidc-provider');
+require('dotenv').config();
 
-const issuer = 'http://localhost:3000';
+const Koa = require('koa');
+const mount = require('koa-mount');
 
-const oidcProvider = new Provider(issuer, {
-    clients: [{
-        client_id: 'app',
-        client_secret: 'scorpion',
-        grant_types: ['authorization_code'],
-        redirect_uris: [`${issuer}/auth/login/callback`, 'https://oidcdebugger.com/debug'],
-        response_types: ['code'],
-    }],
-    pkce: {
-        required: () => false,
-    },
-});
+const oidcProvder = require('./oidc-provider');
 
-oidcProvider.listen(3000, () => {
-    console.log(`Server listening on port 3000.`);
-    console.log(`>> Discovery Document: ${issuer}/.well-known/openid-configuration`);
-    console.log(`>> Test the OP server: https://oidcdebugger.com/`);
-});
+new Koa()
+    .use(errorHandler)
+    .use(httpLogger)
+    .use(mount(oidcProvder.app))
+    .listen(process.env.PORT, () => {
+        console.log(`Server listening on port 3000.`);
+        console.log(`-- Discovery Document: ${process.env.ISSUER}/.well-known/openid-configuration`);
+        console.log(`-- Test the OP server: https://oidcdebugger.com/`);
+    });
+
+async function errorHandler(ctx, next) {
+    try {
+        await next();
+    } catch (err) {
+        err.status = err.statusCode || err.status || 500;
+        throw err;
+    }
+}
+
+async function httpLogger(ctx, next) {
+    console.log(`>> ${ctx.method} ${ctx.path} ${ctx.request.body ?? ''}`);
+    await next();
+    console.log(`<< ${ctx.res.statusCode} ${ctx.res.statusMessage ?? ''}`);
+}
