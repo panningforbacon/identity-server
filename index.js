@@ -3,12 +3,12 @@ require('dotenv').config();
 const Koa = require('koa');
 const mount = require('koa-mount');
 
-const oidcProvder = require('./oidc-provider');
+const { getOidcProvider } = require('./oidc');
 
 new Koa()
     .use(errorHandler)
     .use(httpLogger)
-    .use(mount(oidcProvder.app))
+    .use(mount(getOidcProvider(process.env.ISSUER).app))
     .listen(process.env.PORT, () => {
         console.log(`Server listening on port 3000.`);
         console.log(`-- Discovery Document: ${process.env.ISSUER}/.well-known/openid-configuration`);
